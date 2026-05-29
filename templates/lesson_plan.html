@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lesson Plans</title>
+    <style>
+        :root { --gh-green: #006B3F; --gh-gold: #FCD116; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            color: #000;
+            background: #e8edf0;
+            margin: 0; padding: 0;
+        }
+
+        /* ── Action bar ── */
+        .action-bar {
+            background: var(--gh-green);
+            color: white;
+            padding: 0.75rem 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .action-bar .left { font-size: 0.87rem; }
+        .action-bar .right { display: flex; gap: 0.6rem; }
+        .action-btn {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.4rem 1.1rem; border-radius: 4px;
+            font-size: 0.84rem; font-weight: 600; cursor: pointer; border: none;
+        }
+        .btn-pdf  { background: var(--gh-gold); color: #000; }
+        .btn-pdf:hover  { background: #e6bc00; }
+        .btn-word { background: #2B579A; color: white; }
+        .btn-word:hover { background: #1e3f72; }
+        .btn-word:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .edit-hint {
+            background: #fff8e1;
+            border-left: 3px solid var(--gh-gold);
+            padding: 0.4rem 0.9rem;
+            font-size: 0.79rem; color: #666;
+        }
+
+        /* ── Lesson page ── */
+        .lesson-page {
+            max-width: 1100px;
+            margin: 20px auto;
+            background: white;
+            padding: 28px 36px;
+            border: 1px solid #ccc;
+        }
+        .lesson-divider {
+            max-width: 1100px; margin: 0 auto;
+            border: none; border-top: 4px solid var(--gh-green);
+        }
+
+        /* Lesson heading */
+        .lesson-heading {
+            text-align: center;
+            font-weight: bold;
+            font-size: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--gh-green);
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid var(--gh-green);
+        }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; margin-top: 0; }
+        table + table { margin-top: 0; }
+        td, th {
+            border: 1px solid #333;
+            padding: 8px 10px;
+            vertical-align: top;
+        }
+        .lbl { font-weight: bold; }
+        .center { text-align: center; vertical-align: middle; }
+
+        /* Phase label cells */
+        .phase-cell {
+            font-size: 12px;
+            vertical-align: top;
+            background: #f1f8f4;
+            line-height: 1.5;
+            width: 17%;
+        }
+        .phase-cell .phase-name { font-weight: bold; }
+        .phase-cell .phase-mins { font-size: 10px; color: #555; }
+
+        /* Header row of phase table */
+        .phase-header {
+            background: #d4edda;
+            font-weight: bold;
+            text-align: center;
+            font-size: 13px;
+            padding: 6px 8px;
+        }
+
+        /* ── List rendering inside phase cells ── */
+        .phase-content ol, .phase-content ul {
+            margin: 4px 0 4px 18px; padding: 0;
+        }
+        .phase-content li { margin-bottom: 3px; }
+        .phase-content p  { margin: 3px 0; }
+        .phase-content strong { font-weight: bold; }
+
+        /* ── Editable cells ── */
+        [contenteditable="true"] {
+            white-space: pre-wrap;
+            outline: none;
+            min-height: 1em;
+            display: block;
+            border-radius: 2px;
+        }
+        [contenteditable="true"]:hover  { background: #f0faf4; cursor: text; }
+        [contenteditable="true"]:focus  { background: #e8f5e9; box-shadow: inset 0 0 0 1px var(--gh-green); }
+
+        /* ── Print ── */
+        @media print {
+            body { background: white; }
+            .action-bar { display: none !important; }
+            .edit-hint  { display: none !important; }
+            .no-print   { display: none !important; }
+            .lesson-divider { display: none !important; }
+            .lesson-page {
+                margin: 0; padding: 12px 14px; border: none; max-width: 100%;
+                page-break-after: always;
+            }
+            .lesson-page:last-child { page-break-after: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="action-bar">
+    <span class="left">
+        {{ lessons | length }} lesson plan{{ 's' if lessons | length != 1 else '' }} ready
+    </span>
+    <div class="right">
+        <button class="action-btn btn-pdf" onclick="window.print()">&#128438; Print / Save PDF</button>
+        <button class="action-btn btn-word" id="btn-word" onclick="downloadWord()">&#128196; Download Word</button>
+    </div>
+</div>
+
+<div class="edit-hint">&#9998;&nbsp; All text is editable — click any cell to make changes. Changes are preserved when you print or download.</div>
+
+<script>const LESSONS_DATA = {{ lessons | tojson }};</script>
+
+{% for lesson in lessons %}
+{% if not loop.first %}<hr class="lesson-divider">{% endif %}
+
+<div class="lesson-page" data-lesson-idx="{{ loop.index0 }}">
+
+    <div class="lesson-heading">{{ lesson.Subject }} &nbsp;&bull;&nbsp; {{ lesson.Lesson_Number }}</div>
+
+    <!-- ── Header: one field per cell ── -->
+    <table>
+        <tr>
+            <td width="25%"><span class="lbl">Date:</span><br>
+                <span data-field="Date" contenteditable="true">{{ lesson.Date }}</span>
+            </td>
+            <td width="25%"><span class="lbl">Week Ending:</span><br>
+                <span data-field="Week_Ending" contenteditable="true">{{ lesson.Week_Ending }}</span>
+            </td>
+            <td width="25%"><span class="lbl">Subject:</span><br>
+                <span data-field="Subject" contenteditable="true">{{ lesson.Subject }}</span>
+            </td>
+            <td width="25%"><span class="lbl">Duration:</span><br>
+                <span data-field="Duration" contenteditable="true">{{ lesson.Duration }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td><span class="lbl">Class:</span><br>
+                <span data-field="Class_Level" contenteditable="true">{{ lesson.Class_Level }}</span>
+            </td>
+            <td><span class="lbl">Class size:</span><br>
+                <span data-field="Class_Size" contenteditable="true">{{ lesson.Class_Size }}</span>
+            </td>
+            <td colspan="2"><span class="lbl">Strand:</span><br>
+                <span data-field="Strand_Number_and_Name" contenteditable="true">{{ lesson.Strand_Number_and_Name }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="4"><span class="lbl">Sub strand:</span>
+                <span data-field="Sub_Strand_Number_and_Name" contenteditable="true">{{ lesson.Sub_Strand_Number_and_Name }}</span>
+            </td>
+        </tr>
+    </table>
+
+    <!-- ── Standards block ── -->
+    <table>
+        <!-- Row: Content Standard | Indicator | Lesson X of Y -->
+        <tr>
+            <td width="38%">
+                <span class="lbl">Content Standard:</span><br>
+                <div data-field="Content_Standard" contenteditable="true">{{ lesson.Content_Standard }}</div>
+            </td>
+            <td width="46%">
+                <span class="lbl">Indicator:</span><br>
+                <div data-field="Indicator" contenteditable="true">{{ lesson.Indicator }}</div>
+            </td>
+            <td width="16%" class="center">
+                <span data-field="Lesson_Number" contenteditable="true">{{ lesson.Lesson_Number }}</span>
+            </td>
+        </tr>
+        <!-- Row: Performance Indicator | Core Competencies -->
+        <tr>
+            <td colspan="2">
+                <span class="lbl">Performance Indicator:</span>
+                <div data-field="Performance_Indicator" contenteditable="true">{{ lesson.Performance_Indicator }}</div>
+            </td>
+            <td>
+                <span class="lbl">Core Competencies/Values:</span><br>
+                <div data-field="Core_Competencies_Values" contenteditable="true" style="font-size:10.5px;">{{ lesson.Core_Competencies_Values }}</div>
+            </td>
+        </tr>
+        <!-- Row: Key words (full width) -->
+        <tr>
+            <td colspan="3">
+                <span class="lbl">Key words:</span>
+                <span data-field="Key_Words" contenteditable="true">{{ lesson.Key_Words }}</span>
+            </td>
+        </tr>
+        <!-- Row: Phase table header -->
+        <tr>
+            <td class="phase-header" width="17%">Phase/Duration</td>
+            <td class="phase-header" width="66%">Learner activities</td>
+            <td class="phase-header" width="17%">Resources</td>
+        </tr>
+    </table>
+
+    <!-- ── Phases ── -->
+    <table>
+        <!-- Phase 1 -->
+        <tr>
+            <td class="phase-cell" width="17%">
+                <div class="phase-name">Phase 1:<br>Starter</div>
+                <div class="phase-mins" data-field="Phase_1_Time" contenteditable="true">{{ lesson.Phase_1_Time }}</div>
+            </td>
+            <td width="66%">
+                <div class="phase-content" data-field="Phase_1_Starter" data-raw="{{ lesson.Phase_1_Starter | e }}" contenteditable="true">{{ lesson.Phase_1_Starter | render_list | safe }}</div>
+            </td>
+            <td width="17%">
+                <div data-field="Phase_1_Resources" contenteditable="true"></div>
+            </td>
+        </tr>
+        <!-- Phase 2 -->
+        <tr>
+            <td class="phase-cell">
+                <div class="phase-name">Phase 2:<br>Main</div>
+                <div class="phase-mins" data-field="Phase_2_Time" contenteditable="true">{{ lesson.Phase_2_Time }}</div>
+            </td>
+            <td>
+                <div class="phase-content" data-field="Phase_2_Main" data-raw="{{ lesson.Phase_2_Main | e }}" contenteditable="true">{{ lesson.Phase_2_Main | render_list | safe }}</div>
+            </td>
+            <td>
+                <div data-field="Resources_TLMs" contenteditable="true">{{ lesson.Resources_TLMs }}</div>
+            </td>
+        </tr>
+        <!-- Phase 3 -->
+        <tr>
+            <td class="phase-cell">
+                <div class="phase-name">Phase 3:<br>Plenary/<br>Reflections</div>
+                <div class="phase-mins" data-field="Phase_3_Time" contenteditable="true">{{ lesson.Phase_3_Time }}</div>
+            </td>
+            <td>
+                <div class="phase-content" data-field="Phase_3_Plenary_Reflections" data-raw="{{ lesson.Phase_3_Plenary_Reflections | e }}" contenteditable="true">{{ lesson.Phase_3_Plenary_Reflections | render_list | safe }}</div>
+            </td>
+            <td>
+                <div data-field="Phase_3_Resources" contenteditable="true"></div>
+            </td>
+        </tr>
+    </table>
+
+</div>
+{% endfor %}
+
+<script>
+    function collectLessons() {
+        const result = JSON.parse(JSON.stringify(LESSONS_DATA));
+        document.querySelectorAll('.lesson-page').forEach((page, i) => {
+            if (!result[i]) return;
+            page.querySelectorAll('[data-field]').forEach(el => {
+                // phase-content divs contain rendered HTML lists — use innerText
+                // to get readable plain text (ol/ul items become newline-separated)
+                result[i][el.dataset.field] = el.innerText.trim();
+            });
+        });
+        return result;
+    }
+
+    async function downloadWord() {
+        const btn = document.getElementById('btn-word');
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '&#9203; Generating&hellip;';
+        try {
+            const res = await fetch('/download-docx', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lessons: collectLessons() }),
+            });
+            if (!res.ok) throw new Error('Server error ' + res.status);
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'Lesson_Plans.docx';
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            alert('Could not generate Word file: ' + err.message);
+        } finally {
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+    }
+</script>
+
+<footer style="background:#004d2e; color:rgba(255,255,255,0.7); text-align:center; padding:0.9rem; font-size:0.82rem; margin-top:2rem;" class="no-print">
+    Powered by <strong style="color:#FCD116;">Ghana NLP</strong>
+</footer>
+</body>
+</html>

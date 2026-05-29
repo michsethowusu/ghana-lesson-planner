@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Lesson Plan Generator — Ghana Curriculum</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --gh-green: #006B3F;
+            --gh-gold:  #FCD116;
+            --gh-red:   #CE1126;
+        }
+        body { background: #f0f4f8; font-family: 'Segoe UI', Arial, sans-serif; }
+
+        .top-bar {
+            background: var(--gh-green);
+            color: white;
+            padding: 1rem 0;
+            border-bottom: 5px solid var(--gh-gold);
+        }
+        .top-bar h1 { font-size: 1.35rem; font-weight: 700; margin: 0; }
+        .top-bar p  { font-size: 0.82rem; margin: 0; opacity: 0.8; }
+
+        .section-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        .section-card .card-header {
+            background: var(--gh-green);
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
+            padding: 0.7rem 1.1rem;
+        }
+        .section-card .card-header small {
+            font-weight: 400;
+            opacity: 0.85;
+            font-size: 0.78rem;
+        }
+        .card-body { padding: 1.25rem; }
+
+        /* Lesson rows */
+        .lesson-row {
+            background: #f7f9ff;
+            border: 1px solid #d0d9e8;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            position: relative;
+        }
+        .lesson-row-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--gh-green);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.6rem;
+        }
+        .btn-remove-lesson {
+            position: absolute;
+            top: 0.7rem; right: 0.75rem;
+            background: none;
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            border-radius: 4px;
+            padding: 1px 10px;
+            font-size: 0.78rem;
+            cursor: pointer;
+        }
+        .btn-remove-lesson:hover { background: #dc3545; color: white; }
+
+        .btn-add-lesson {
+            width: 100%;
+            background: white;
+            border: 2px dashed var(--gh-green);
+            color: var(--gh-green);
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            padding: 0.65rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 0.25rem;
+        }
+        .btn-add-lesson:hover { background: var(--gh-green); color: white; }
+        .btn-add-lesson:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            background: white;
+            color: var(--gh-green);
+        }
+
+        .btn-generate {
+            background: var(--gh-green);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding: 0.75rem 3.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-generate:hover { background: #004d2e; }
+
+        /* Loading overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,40,20,0.78);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: white;
+            text-align: center;
+        }
+        .loading-overlay.active { display: flex; }
+        .spinner-ring {
+            width: 64px; height: 64px;
+            border: 6px solid rgba(255,255,255,0.2);
+            border-top-color: var(--gh-gold);
+            border-radius: 50%;
+            animation: spin 0.85s linear infinite;
+            margin-bottom: 1.25rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .form-label { font-weight: 500; font-size: 0.88rem; color: #3a3a3a; }
+        .req { color: var(--gh-red); }
+
+        /* Confirm modal */
+        .modal-header { background: var(--gh-green); color: white; }
+        .modal-header .btn-close { filter: invert(1); }
+        #confirm-table td, #confirm-table th { font-size: 0.85rem; padding: 5px 10px; }
+        .btn-confirm-gen {
+            background: var(--gh-green); color: white;
+            font-weight: 700; border: none;
+            padding: 0.55rem 1.8rem; border-radius: 6px; cursor: pointer;
+        }
+        .btn-confirm-gen:hover { background: #004d2e; }
+
+        /* Date conflict indicator */
+        .date-conflict { border-color: var(--gh-red) !important; background: #fff5f5 !important; }
+    </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+    <div class="container d-flex align-items-center gap-3">
+        <i class="bi bi-journal-richtext" style="font-size:2.1rem;"></i>
+        <div>
+            <h1>Weekly Lesson Plan Generator</h1>
+            <p>Ghana Curriculum</p>
+        </div>
+    </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="spinner-ring"></div>
+    <h5 style="margin:0 0 0.4rem;">Generating your lesson plans&hellip;</h5>
+    <p style="opacity:0.75; font-size:0.88rem; margin:0;">This may take a moment for multiple lessons.</p>
+</div>
+
+<!-- Confirmation modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-check2-circle me-2"></i>Confirm Details Before Generating
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- Auto-set values callout -->
+                <div class="alert alert-warning py-2 mb-3 d-flex align-items-start gap-2" style="font-size:0.84rem;">
+                    <i class="bi bi-exclamation-circle-fill mt-1"></i>
+                    <div>
+                        <strong>Review auto-set values below.</strong>
+                        Week dates were set automatically from today's date.
+                        Close this dialog to make any changes before proceeding.
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-sm-3 text-muted fw-semibold" style="font-size:0.84rem;">Class Level</div>
+                    <div class="col-sm-9" id="confirm-level"></div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-sm-3 text-muted fw-semibold" style="font-size:0.84rem;">
+                        Week
+                        <span class="badge bg-warning text-dark ms-1" style="font-size:0.7rem;">auto-set</span>
+                    </div>
+                    <div class="col-sm-9 fw-semibold" id="confirm-week"></div>
+                </div>
+                <div class="text-muted fw-semibold mb-1" style="font-size:0.84rem;">Lessons</div>
+                <table class="table table-bordered table-sm" id="confirm-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Sub-Strand</th>
+                            <th>
+                                Date
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.7rem;">auto-set</span>
+                            </th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="confirm-rows"></tbody>
+                </table>
+                <div class="alert alert-info py-2 mb-0" style="font-size:0.82rem;">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Same sub-strand added more than once = multiple distinct lessons
+                    (Lesson 1 of N, Lesson 2 of N, &hellip;) with distinct content for each.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-arrow-left me-1"></i>Go Back &amp; Edit
+                </button>
+                <button class="btn-confirm-gen" id="confirm-generate-btn">
+                    <i class="bi bi-stars me-1"></i>Confirm &amp; Generate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-4" style="max-width:900px;">
+<form action="/generate" method="POST" target="_blank" id="main-form">
+
+    <!-- ── Teacher, Level & Week ── -->
+    <div class="section-card">
+        <div class="card-header"><i class="bi bi-person-badge me-2"></i>Teacher &amp; Week</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Class Level <span class="req">*</span></label>
+                    <select name="class_level" id="class_level" class="form-select" required>
+                        <option value="">Level&hellip;</option>
+                        {% for level in levels %}
+                        <option value="{{ level }}">{{ level }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Class Size</label>
+                    <input type="number" name="class_size" id="class_size"
+                           class="form-control" value="35" min="1" max="200">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">
+                        Week Starting
+                        <span class="badge bg-warning text-dark ms-1" style="font-size:0.68rem;">auto-set</span>
+                    </label>
+                    <input type="date" name="week_starting" id="week_starting"
+                           class="form-control" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">
+                        Week Ending
+                        <span class="badge bg-warning text-dark ms-1" style="font-size:0.68rem;">auto-set</span>
+                    </label>
+                    <input type="date" name="week_ending" id="week_ending"
+                           class="form-control" required>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Lesson Schedule ── -->
+    <div class="section-card">
+        <div class="card-header">
+            <i class="bi bi-list-ol me-2"></i>Lesson Schedule
+            <small class="ms-2">— Search and pick sub-strands. Add the same one more than once to plan multiple lessons on it.</small>
+        </div>
+        <div class="card-body">
+
+            <div id="no-level-msg" class="text-center text-muted py-3" style="font-size:0.9rem;">
+                <i class="bi bi-arrow-up-circle d-block mb-1" style="font-size:1.4rem;"></i>
+                Select a Class Level above to start adding lessons
+            </div>
+
+            <div id="lessons-container"></div>
+
+            <button type="button" class="btn-add-lesson" id="add-lesson-btn" style="display:none;">
+                <i class="bi bi-plus-circle me-1"></i>Add Another Lesson
+            </button>
+
+        </div>
+    </div>
+
+    <!-- ── Generate ── -->
+    <div class="text-center pb-5">
+        <button type="button" class="btn-generate" id="review-btn">
+            <i class="bi bi-file-earmark-text me-2"></i>Generate Lesson Plans
+        </button>
+    </div>
+
+</form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+    // ── Date helpers ──
+    function isoDate(d) { return d.toISOString().split('T')[0]; }
+
+    function currentWeekMonday() {
+        const d   = new Date();
+        const day = d.getDay();                   // 0=Sun … 6=Sat
+        const off = day === 0 ? -6 : 1 - day;    // days back to Monday
+        d.setDate(d.getDate() + off);
+        return d;
+    }
+
+    (function setDefaultWeekDates() {
+        const mon = currentWeekMonday();
+        const fri = new Date(mon);
+        fri.setDate(mon.getDate() + 4);
+        document.getElementById('week_starting').value = isoDate(mon);
+        document.getElementById('week_ending').value   = isoDate(fri);
+    })();
+
+    // Auto-update week_ending to Friday when week_starting changes
+    document.getElementById('week_starting').addEventListener('change', function () {
+        const d = new Date(this.value + 'T00:00:00');
+        if (isNaN(d)) return;
+        const day  = d.getDay();
+        const diff = day === 0 ? 5 : (5 - day + 7) % 7 || 7;
+        d.setDate(d.getDate() + diff);
+        document.getElementById('week_ending').value = isoDate(d);
+    });
+
+    // ── Sub-strand data ──
+    const todayVal  = "{{ today }}";
+    let currentLevel    = '';
+    let levelSubStrands = [];   // sub-strands for the selected level
+    const tsInstances   = {};   // lessonIndex → TomSelect
+    let lessonCount = 0;
+
+    // ── Level selector ──
+    document.getElementById('class_level').addEventListener('change', async function () {
+        currentLevel = this.value;
+        if (!currentLevel) {
+            levelSubStrands = [];
+            document.getElementById('no-level-msg').style.display = '';
+            document.getElementById('add-lesson-btn').style.display = 'none';
+            // Destroy existing lesson rows
+            clearAllLessons();
+            return;
+        }
+
+        const res = await fetch(`/api/substrands/${currentLevel}`);
+        levelSubStrands = await res.json();
+
+        // Repopulate all existing Tom Select instances with the new level's sub-strands
+        Object.entries(tsInstances).forEach(([idx, ts]) => {
+            ts.clearOptions();
+            levelSubStrands.forEach(ss => ts.addOption({ value: ss, text: ss }));
+            ts.clear();
+            ts.refreshOptions(false);
+        });
+
+        document.getElementById('no-level-msg').style.display = 'none';
+        document.getElementById('add-lesson-btn').style.display = 'block';
+
+        if (document.querySelectorAll('.lesson-row').length === 0) {
+            addLesson();
+        }
+    });
+
+    function clearAllLessons() {
+        Object.keys(tsInstances).forEach(idx => {
+            tsInstances[idx].destroy();
+            delete tsInstances[idx];
+        });
+        document.getElementById('lessons-container').innerHTML = '';
+        lessonCount = 0;
+    }
+
+    // ── Pick the next weekday in the week that isn't already used ──
+    function nextAvailableDate() {
+        const weekStart = document.getElementById('week_starting').value;
+        if (!weekStart) return todayVal;
+
+        const used = new Set(
+            [...document.querySelectorAll('input[name="date[]"]')].map(i => i.value).filter(Boolean)
+        );
+        const mon = new Date(weekStart + 'T00:00:00');
+        for (let i = 0; i < 5; i++) {
+            const d   = new Date(mon);
+            d.setDate(mon.getDate() + i);
+            const iso = isoDate(d);
+            if (!used.has(iso)) return iso;
+        }
+        return todayVal;  // fallback if all 5 days taken
+    }
+
+    // ── Add a lesson row ──
+    function addLesson() {
+        lessonCount++;
+        const idx     = lessonCount;
+        const defDate = nextAvailableDate();
+
+        const div = document.createElement('div');
+        div.className   = 'lesson-row';
+        div.dataset.idx = idx;
+
+        div.innerHTML = `
+            <div class="lesson-row-label">Lesson ${idx}</div>
+            ${idx > 1 ? `<button type="button" class="btn-remove-lesson" onclick="removeLesson(this)">&#10005;</button>` : ''}
+            <div class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label">Sub-Strand <span class="req">*</span></label>
+                    <select name="sub_strand[]" id="ss-${idx}" required></select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">
+                        Date <span class="req">*</span>
+                        <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">auto-set</span>
+                    </label>
+                    <input type="date" name="date[]" class="form-control lesson-date"
+                           value="${defDate}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Duration <span class="req">*</span></label>
+                    <div class="d-flex gap-2">
+                        <select name="duration[]" class="form-select" onchange="toggleCustom(this)" required>
+                            <option value="30 mins">30 mins</option>
+                            <option value="45 mins">45 mins</option>
+                            <option value="60 mins" selected>60 mins</option>
+                            <option value="90 mins">90 mins</option>
+                            <option value="100 mins">100 mins</option>
+                            <option value="120 mins">120 mins</option>
+                            <option value="custom">Custom&hellip;</option>
+                        </select>
+                        <input type="number" name="custom_duration[]"
+                               class="form-control custom-dur"
+                               placeholder="mins" min="1" max="300"
+                               style="display:none; max-width:82px;">
+                    </div>
+                </div>
+            </div>`;
+
+        document.getElementById('lessons-container').appendChild(div);
+        renumber();
+
+        // Init Tom Select on the bare <select> (no pre-filled <option>s needed)
+        tsInstances[idx] = new TomSelect(`#ss-${idx}`, {
+            placeholder: 'Search sub-strands…',
+            sortField:   'text',
+            maxItems:    1,
+            options:     levelSubStrands.map(ss => ({ value: ss, text: ss })),
+        });
+
+        // Watch date changes to clear conflict styling
+        div.querySelector('.lesson-date').addEventListener('change', checkDateConflicts);
+        checkDateConflicts();
+    }
+
+    function removeLesson(btn) {
+        const row = btn.closest('.lesson-row');
+        const idx = parseInt(row.dataset.idx);
+        if (tsInstances[idx]) { tsInstances[idx].destroy(); delete tsInstances[idx]; }
+        row.remove();
+        renumber();
+        checkDateConflicts();
+    }
+
+    function renumber() {
+        document.querySelectorAll('.lesson-row').forEach((row, i) => {
+            row.querySelector('.lesson-row-label').textContent = `Lesson ${i + 1}`;
+        });
+    }
+
+    function toggleCustom(sel) {
+        const input = sel.closest('.d-flex').querySelector('.custom-dur');
+        if (sel.value === 'custom') {
+            input.style.display = 'block';
+            input.required = true;
+        } else {
+            input.style.display = 'none';
+            input.required = false;
+            input.value = '';
+        }
+    }
+
+    // ── Date conflict detection ──
+    function checkDateConflicts() {
+        const inputs = [...document.querySelectorAll('input[name="date[]"]')];
+        const seen   = {};
+        inputs.forEach(inp => {
+            seen[inp.value] = (seen[inp.value] || 0) + 1;
+        });
+        inputs.forEach(inp => {
+            inp.classList.toggle('date-conflict', seen[inp.value] > 1);
+            inp.title = seen[inp.value] > 1 ? 'Duplicate date — each lesson needs a different day' : '';
+        });
+    }
+
+    document.getElementById('add-lesson-btn').addEventListener('click', addLesson);
+
+    // ── Confirm modal ──
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+
+    document.getElementById('review-btn').addEventListener('click', function () {
+        // Validate level
+        if (!currentLevel) { alert('Please select a Class Level.'); return; }
+
+        // Validate at least one lesson
+        const rows = [...document.querySelectorAll('.lesson-row')];
+        if (rows.length === 0) { alert('Please add at least one lesson.'); return; }
+
+        // Validate all sub-strands selected
+        const missing = rows.some(row => {
+            const idx = parseInt(row.dataset.idx);
+            return !tsInstances[idx] || !tsInstances[idx].getValue();
+        });
+        if (missing) { alert('Please select a sub-strand for every lesson.'); return; }
+
+        // Validate no duplicate dates
+        const conflicted = document.querySelectorAll('.date-conflict');
+        if (conflicted.length > 0) {
+            alert('Two or more lessons share the same date. Each lesson must be on a different day.');
+            return;
+        }
+
+        // Populate modal
+        document.getElementById('confirm-level').textContent = currentLevel;
+        const ws = document.getElementById('week_starting').value;
+        const we = document.getElementById('week_ending').value;
+        document.getElementById('confirm-week').textContent =
+            `${fmtDate(ws)}  →  ${fmtDate(we)}`;
+
+        const tbody = document.getElementById('confirm-rows');
+        tbody.innerHTML = '';
+        rows.forEach((row, i) => {
+            const idx     = parseInt(row.dataset.idx);
+            const ss      = tsInstances[idx]?.getValue() || '';
+            const date    = row.querySelector('input[name="date[]"]').value;
+            const durSel  = row.querySelector('select[name="duration[]"]').value;
+            const custom  = row.querySelector('.custom-dur').value;
+            const durLbl  = durSel === 'custom' ? `${custom} mins` : durSel;
+            const tr      = document.createElement('tr');
+            tr.innerHTML  = `<td>${i+1}</td><td>${ss}</td><td>${fmtDate(date)}</td><td>${durLbl}</td>`;
+            tbody.appendChild(tr);
+        });
+
+        confirmModal.show();
+    });
+
+    document.getElementById('confirm-generate-btn').addEventListener('click', function () {
+        confirmModal.hide();
+        document.getElementById('loading-overlay').classList.add('active');
+        setTimeout(() => document.getElementById('loading-overlay').classList.remove('active'), 14000);
+        document.getElementById('main-form').submit();
+    });
+
+    function fmtDate(iso) {
+        if (!iso) return '';
+        const [y, m, d] = iso.split('-');
+        const months = ['Jan','Feb','Mar','Apr','May','Jun',
+                        'Jul','Aug','Sep','Oct','Nov','Dec'];
+        return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+    }
+</script>
+
+<footer style="background:#004d2e; color:rgba(255,255,255,0.7); text-align:center; padding:0.9rem; font-size:0.8rem; margin-top:2rem;">
+    Powered by <strong style="color:#FCD116;">Ghana NLP</strong>
+</footer>
+</body>
+</html>
