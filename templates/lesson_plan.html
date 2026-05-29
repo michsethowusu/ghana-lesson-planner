@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Lesson Plans</title>
+    <title>Ghana Lesson Planner — Your Lesson Plans</title>
     <style>
         :root { --gh-green: #006B3F; --gh-gold: #FCD116; }
         * { box-sizing: border-box; }
@@ -39,9 +39,15 @@
 
         .edit-hint {
             background: #fff8e1;
-            border-left: 3px solid var(--gh-gold);
-            padding: 0.4rem 0.9rem;
-            font-size: 0.79rem; color: #666;
+            border: 2px solid var(--gh-gold);
+            border-radius: 10px;
+            margin: 1.25rem auto;
+            max-width: 1100px;
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #5a4000;
+            text-align: center;
         }
 
         /* ── Lesson page ── */
@@ -147,7 +153,7 @@
     </div>
 </div>
 
-<div class="edit-hint">&#9998;&nbsp; All text is editable — click any cell to make changes. Changes are preserved when you print or download.</div>
+<div class="edit-hint">✏️ Click any cell to make changes &nbsp;·&nbsp; Download or print when you're ready</div>
 
 <script>const LESSONS_DATA = {{ lessons | tojson }};</script>
 
